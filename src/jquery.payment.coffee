@@ -386,7 +386,6 @@ payment.fn.cardExpiryVal = ->
   payment.cardExpiryVal(this.value)
 
 payment.cardExpiryVal = (value) ->
-  console.log(value)
   value = @value.replace(/\s/g, '')
   [month, year] = value.split('/', 2)
 
