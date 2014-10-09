@@ -102,6 +102,16 @@ cards = [
   }
 ]
 
+onEvent = (element, event, callback) ->
+  element.addEventListener event, (e) ->
+    e.preventDefault() if !callback(e)
+    return callback(e)
+  , false
+  return
+
+trim = (str) ->
+  (str + '').replace(/^\s+|\s+$/g, '')
+
 cardFromNumber = (num) ->
   num = (num + '').replace(/\D/g, '')
   return card for card in cards when card.pattern.test(num)
@@ -335,13 +345,6 @@ setCardType = (e) ->
     #Check what to return "target.dispatchEvent(event)" or "target"
     target
 
-onEvent = (element, event, callback) ->
-  element.addEventListener event, (e) ->
-    e.preventDefault() if !callback(e)
-    return callback(e)
-  , false
-  return
-
 # Public
 
 # Formatting
@@ -417,8 +420,8 @@ payment.validateCardExpiry = (month, year) ->
 
   return false unless month and year
 
-  month = month.toString().replace(/^\s+|\s+$/g, '')
-  year  = year.toString().replace(/^\s+|\s+$/g, '')
+  month = trim(month)
+  year  = trim(year)
 
   return false unless /^\d+$/.test(month)
   return false unless /^\d+$/.test(year)
@@ -446,7 +449,7 @@ payment.validateCardExpiry = (month, year) ->
   expiry > currentTime
 
 payment.validateCardCVC = (cvc, type) ->
-  cvc = cvc.replace(/^\s+|\s+$/g, '')
+  cvc = trim(cvc)
   return false unless /^\d+$/.test(cvc)
 
   card = cardFromType(type)
