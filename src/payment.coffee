@@ -1,5 +1,6 @@
 payment = {}
 payment = (method, element, args...) ->
+  return if !element
   payment.fn[method].apply(element, args)
 
 payment.fn = {}
