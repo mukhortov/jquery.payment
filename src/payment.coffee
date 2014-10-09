@@ -387,10 +387,10 @@ payment.fn.restrictNumeric = ->
 # Validations
 
 payment.fn.cardExpiryVal = ->
-  payment.cardExpiryVal.call(this, this.value)
+  payment.cardExpiryVal(this.value)
 
 payment.cardExpiryVal = (value) ->
-  value = @value.replace(/\s/g, '')
+  value = value.replace(/\s/g, '')
   [month, year] = value.split('/', 2)
 
   # Allow for year shortcut
