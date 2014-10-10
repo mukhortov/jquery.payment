@@ -21,7 +21,7 @@ if (!valid) {
 }
 ```
 
-You can find a full [demo here](http://stripe.github.io/jquery.payment/example).
+You can find a full [demo here](http://mukhortov.github.io/payment.js/example).
 
 Supported card types are:
 
