@@ -103,10 +103,11 @@ cards = [
   }
 ]
 
-onEvent = (element, event, callback) ->
-  element.addEventListener event, (e) ->
-    e.preventDefault() if !callback(e)
-    return callback(e)
+onEvent = (element, eventName, callback) ->
+  element.addEventListener eventName, (e) ->
+    ifPreventDefault = callback(e)
+    e.preventDefault() if !ifPreventDefault
+    return ifPreventDefault
   , false
   return
 
@@ -136,8 +137,8 @@ luhnCheck = (num) ->
 
 hasTextSelected = (target) ->
   # If some text is selected
-  return true if target.getAttribute('selectionStart')? and
-    target.getAttribute('selectionStart') isnt target.getAttribute('selectionEnd')
+  return true if target.selectionStart? and
+    target.selectionStart isnt target.selectionEnd
 
   # If some text is selected in IE
   return true if document?.selection?.createRange?().text
@@ -292,9 +293,9 @@ restrictNumeric = (e) ->
 restrictCardNumber = (e) ->
   target = e.currentTarget || e.target
   digit  = String.fromCharCode(e.which)
-  return unless /^\d+$/.test(digit)
+  return true unless /^\d+$/.test(digit)
 
-  return if hasTextSelected(target)
+  return true if hasTextSelected(target)
 
   # Restrict number of digits
   value = (target.value + digit).replace(/\D/g, '')
@@ -309,21 +310,21 @@ restrictCardNumber = (e) ->
 restrictExpiry = (e) ->
   target = e.currentTarget || e.target
   digit  = String.fromCharCode(e.which)
-  return unless /^\d+$/.test(digit)
+  return true unless /^\d+$/.test(digit)
 
-  return if hasTextSelected(target)
+  return true if hasTextSelected(target)
 
   value = target.value + digit
   value = value.replace(/\D/g, '')
 
-  return false if value.length > 6
+  return !(value.length > 6)
 
 restrictCVC = (e) ->
   target = e.currentTarget || e.target
   digit  = String.fromCharCode(e.which)
-  return unless /^\d+$/.test(digit)
+  return true unless /^\d+$/.test(digit)
 
-  return if hasTextSelected(target)
+  return true if hasTextSelected(target)
 
   val = target.value + digit
   val.length <= 4
@@ -357,7 +358,7 @@ payment.fn.formatCardCVC = ->
 
 payment.fn.formatCardExpiry = ->
   payment('restrictNumeric', this)
-  @addEventListener('keypress', restrictExpiry, false)
+  onEvent(this, 'keypress', restrictExpiry)
   @addEventListener('keypress', formatExpiry, false)
   @addEventListener('keypress', formatForwardSlashAndSpace, false)
   @addEventListener('keypress', formatForwardExpiry, false)
