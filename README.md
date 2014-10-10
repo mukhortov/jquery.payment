@@ -1,6 +1,6 @@
 # Payment.js
 
-Port from jQuery.payment without jQuery.
+Port from [jQuery.payment](https://github.com/stripe/jquery.payment) without jQuery.
 
 A general purpose library for building credit card forms, validating inputs and formatting numbers.
 
