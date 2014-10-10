@@ -1,17 +1,19 @@
-# jQuery.payment [![Build Status](https://travis-ci.org/stripe/jquery.payment.svg?branch=master)](https://travis-ci.org/stripe/jquery.payment)
+# Payment.js
+
+Port from jQuery.payment without jQuery.
 
 A general purpose library for building credit card forms, validating inputs and formatting numbers.
 
 For example, you can make a input act like a credit card field (with number formatting and length restriction):
 
 ``` javascript
-$('input.cc-num').payment('formatCardNumber');
+payment('formatCardNumber', document.querySelector('input.cc-num'));
 ```
 
 Then, when the payment form is submitted, you can validate the card number on the client-side:
 
 ``` javascript
-var valid = $.payment.validateCardNumber($('input.cc-num').val());
+var valid = payment.validateCardNumber(document.querySelector('input.cc-num').value);
 
 if (!valid) {
   alert('Your card is not valid!');
@@ -37,7 +39,7 @@ Supported card types are:
 
 ## API
 
-### $.fn.payment('formatCardNumber')
+### payment('formatCardNumber', inputElement)
 
 Formats card numbers:
 
@@ -50,10 +52,10 @@ Formats card numbers:
 Example:
 
 ``` javascript
-$('input.cc-num').payment('formatCardNumber');
+payment('formatCardNumber', document.querySelector('input.cc-num'));
 ```
 
-### $.fn.payment('formatCardExpiry')
+### payment('formatCardExpiry', inputElement)
 
 Formats card expiry:
 
@@ -64,10 +66,10 @@ Formats card expiry:
 Example:
 
 ``` javascript
-$('input.cc-exp').payment('formatCardExpiry');
+payment('formatCardExpiry', document.querySelector('input.cc-exp'));
 ```
 
-### $.fn.payment('formatCardCVC')
+### payment('formatCardCVC', inputElement)
 
 Formats card CVC:
 
@@ -77,20 +79,20 @@ Formats card CVC:
 Example:
 
 ``` javascript
-$('input.cc-cvc').payment('formatCardCVC');
+payment('formatCardCVC', document.querySelector('input.cc-cvc'));
 ```
 
-### $.fn.payment('restrictNumeric')
+### payment('restrictNumeric', inputElement)
 
 General numeric input restriction.
 
 Example:
 
 ``` javascript
-$('[data-numeric]').payment('restrictNumeric');
+payment('restrictNumeric', document.querySelector('[data-numeric]'));
 ```
 
-### $.payment.validateCardNumber(number)
+### payment.validateCardNumber(number)
 
 Validates a card number:
 
@@ -101,10 +103,10 @@ Validates a card number:
 Example:
 
 ``` javascript
-$.payment.validateCardNumber('4242 4242 4242 4242'); //=> true
+payment.validateCardNumber('4242 4242 4242 4242'); //=> true
 ```
 
-### $.payment.validateCardExpiry(month, year)
+### payment.validateCardExpiry(month, year)
 
 Validates a card expiry:
 
@@ -115,12 +117,12 @@ Validates a card expiry:
 Example:
 
 ``` javascript
-$.payment.validateCardExpiry('05', '20'); //=> true
-$.payment.validateCardExpiry('05', '2015'); //=> true
-$.payment.validateCardExpiry('05', '05'); //=> false
+payment.validateCardExpiry('05', '20'); //=> true
+payment.validateCardExpiry('05', '2015'); //=> true
+payment.validateCardExpiry('05', '05'); //=> false
 ```
 
-### $.payment.validateCardCVC(cvc, type)
+### payment.validateCardCVC(cvc, type)
 
 Validates a card CVC:
 
@@ -130,13 +132,13 @@ Validates a card CVC:
 Example:
 
 ``` javascript
-$.payment.validateCardCVC('123'); //=> true
-$.payment.validateCardCVC('123', 'amex'); //=> true
-$.payment.validateCardCVC('1234', 'amex'); //=> true
-$.payment.validateCardCVC('12344'); //=> false
+payment.validateCardCVC('123'); //=> true
+payment.validateCardCVC('123', 'amex'); //=> true
+payment.validateCardCVC('1234', 'amex'); //=> true
+payment.validateCardCVC('12344'); //=> false
 ```
 
-### $.payment.cardType(number)
+### payment.cardType(number)
 
 Returns a card type. Either:
 
@@ -157,20 +159,20 @@ The function will return `null` if the card type can't be determined.
 Example:
 
 ``` javascript
-$.payment.cardType('4242 4242 4242 4242'); //=> 'visa'
+payment.cardType('4242 4242 4242 4242'); //=> 'visa'
 ```
 
-### $.payment.cardExpiryVal(string) and $.fn.payment('cardExpiryVal')
+### payment.cardExpiryVal(string) and payment('cardExpiryVal', inputElement)
 
 Parses a credit card expiry in the form of MM/YYYY, returning an object containing the `month` and `year`. Shorthand years, such as `13` are also supported (and converted into the longhand, e.g. `2013`).
 
 ``` javascript
-$.payment.cardExpiryVal('03 / 2025'); //=> {month: 3: year: 2025}
-$.payment.cardExpiryVal('05 / 04'); //=> {month: 5, year: 2004}
-$('input.cc-exp').payment('cardExpiryVal') //=> {month: 4, year: 2020}
+payment.cardExpiryVal('03 / 2025'); //=> {month: 3: year: 2025}
+payment.cardExpiryVal('05 / 04'); //=> {month: 5, year: 2004}
+payment('cardExpiryVal', document.querySelector('input.cc-exp')) //=> {month: 4, year: 2020}
 ```
 
-This function doesn't perform any validation of the month or year; use `$.payment.validateCardExpiry(month, year)` for that.
+This function doesn't perform any validation of the month or year; use `payment.validateCardExpiry(month, year)` for that.
 
 ## Example
 
