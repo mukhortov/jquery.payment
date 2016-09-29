@@ -1,105 +1,99 @@
-payment = {}
-payment = (method, element, args...) ->
-  return if !element
-  payment.fn[method].apply(element, args)
-
-payment.fn = {}
+$ = window.jQuery or window.Zepto or window.$
+$.payment = {}
+$.payment.fn = {}
+$.fn.payment = (method, args...) ->
+  $.payment.fn[method].apply(this, args)
 
 # Utils
 
 defaultFormat = /(\d{1,4})/g
 
-cards = [
-  # Debit cards must come first, since they have more
-  # specific patterns than their credit-card equivalents.
+$.payment.cards = cards = [
   {
-      type: 'visaelectron'
-      pattern: /^4(026|17500|405|508|844|91[37])/
-      format: defaultFormat
-      length: [16]
-      cvcLength: [3]
-      luhn: true
+    type: 'maestro'
+    patterns: [
+      5018, 502, 503, 506, 56, 58, 639, 6220, 67
+    ]
+    format: defaultFormat
+    length: [12..19]
+    cvcLength: [3]
+    luhn: true
   }
   {
-      type: 'maestro'
-      pattern: /^(5(018|0[23]|[68])|6(39|7))/
-      format: defaultFormat
-      length: [12..19]
-      cvcLength: [3]
-      luhn: true
+    type: 'forbrugsforeningen'
+    patterns: [600]
+    format: defaultFormat
+    length: [16]
+    cvcLength: [3]
+    luhn: true
   }
   {
-      type: 'forbrugsforeningen'
-      pattern: /^600/
-      format: defaultFormat
-      length: [16]
-      cvcLength: [3]
-      luhn: true
-  }
-  {
-      type: 'dankort'
-      pattern: /^5019/
-      format: defaultFormat
-      length: [16]
-      cvcLength: [3]
-      luhn: true
+    type: 'dankort'
+    patterns: [5019]
+    format: defaultFormat
+    length: [16]
+    cvcLength: [3]
+    luhn: true
   }
   # Credit cards
   {
-      type: 'visa'
-      pattern: /^4/
-      format: defaultFormat
-      length: [13, 16]
-      cvcLength: [3]
-      luhn: true
+    type: 'visa'
+    patterns: [4]
+    format: defaultFormat
+    length: [13, 16]
+    cvcLength: [3]
+    luhn: true
   }
   {
-      type: 'mastercard'
-      pattern: /^5[0-5]/
-      format: defaultFormat
-      length: [16]
-      cvcLength: [3]
-      luhn: true
+    type: 'mastercard'
+    patterns: [
+      51, 52, 53, 54, 55,
+      22, 23, 24, 25, 26, 27
+    ]
+    format: defaultFormat
+    length: [16]
+    cvcLength: [3]
+    luhn: true
   }
   {
-      type: 'amex'
-      pattern: /^3[47]/
-      format: /(\d{1,4})(\d{1,6})?(\d{1,5})?/
-      length: [15]
-      cvcLength: [3..4]
-      luhn: true
+    type: 'amex'
+    patterns: [34, 37]
+    format: /(\d{1,4})(\d{1,6})?(\d{1,5})?/
+    length: [15]
+    cvcLength: [3..4]
+    luhn: true
   }
   {
-      type: 'dinersclub'
-      pattern: /^3[0689]/
-      format: defaultFormat
-      length: [14]
-      cvcLength: [3]
-      luhn: true
+    type: 'dinersclub'
+    patterns: [30, 36, 38, 39]
+    format: /(\d{1,4})(\d{1,6})?(\d{1,4})?/
+    length: [14]
+    cvcLength: [3]
+    luhn: true
   }
   {
-      type: 'discover'
-      pattern: /^6([045]|22)/
-      format: defaultFormat
-      length: [16]
-      cvcLength: [3]
-      luhn: true
+    type: 'discover'
+    patterns: [60, 64, 65, 622]
+    format: defaultFormat
+    length: [16]
+    cvcLength: [3]
+    luhn: true
   }
   {
-      type: 'unionpay'
-      pattern: /^(62|88)/
-      format: defaultFormat
-      length: [16..19]
-      cvcLength: [3]
-      luhn: false
+    type: 'unionpay'
+    patterns: [62, 88]
+    format: defaultFormat
+    length: [16..19]
+    cvcLength: [3]
+    luhn: false
   }
   {
-      type: 'jcb'
-      pattern: /^35/
-      format: defaultFormat
-      length: [16]
-      cvcLength: [3]
-      luhn: true
+    type: 'jcb'
+    patterns: [35]
+    format: defaultFormat
+    length: [16]
+    cvcLength: [3]
+    luhn: true
   }
 ]
 
@@ -116,7 +110,10 @@ trim = (str) ->
 
 cardFromNumber = (num) ->
   num = (num + '').replace(/\D/g, '')
-  return card for card in cards when card.pattern.test(num)
+  for card in cards
+    for pattern in card.patterns
+      p = pattern + ''
+      return card if num.substr(0, p.length) == p
 
 cardFromType = (type) ->
   return card for card in cards when card.type is type
@@ -141,20 +138,88 @@ hasTextSelected = (target) ->
     target.selectionStart isnt target.selectionEnd
 
   # If some text is selected in IE
-  return true if document?.selection?.createRange?().text
+  if document?.selection?.createRange?
+    return true if document.selection.createRange().text
 
   false
 
 # Private
 
+# Safe Val
+
+safeVal = (value, $target) ->
+  try
+    cursor = $target.prop('selectionStart')
+  catch error
+    cursor = null
+  last = $target.val()
+  $target.val(value)
+  if cursor != null && $target.is(":focus")
+    cursor = value.length if cursor is last.length
+
+    # This hack looks for scenarios where we are changing an input's value such
+    # that "X| " is replaced with " |X" (where "|" is the cursor). In those
+    # scenarios, we want " X|".
+    #
+    # For example:
+    # 1. Input field has value "4444| "
+    # 2. User types "1"
+    # 3. Input field has value "44441| "
+    # 4. Reformatter changes it to "4444 |1"
+    # 5. By incrementing the cursor, we make it "4444 1|"
+    #
+    # This is awful, and ideally doesn't go here, but given the current design
+    # of the system there does not appear to be a better solution.
+    #
+    # Note that we can't just detect when the cursor-1 is " ", because that
+    # would incorrectly increment the cursor when backspacing, e.g. pressing
+    # backspace in this scenario: "4444 1|234 5".
+    if last != value
+      prevPair = last[cursor-1..cursor]
+      currPair = value[cursor-1..cursor]
+      digit = value[cursor]
+      cursor = cursor + 1 if /\d/.test(digit) and
+        prevPair == "#{digit} " and currPair == " #{digit}"
+
+    $target.prop('selectionStart', cursor)
+    $target.prop('selectionEnd', cursor)
+
+# Replace Full-Width Chars
+
+replaceFullWidthChars = (str = '') ->
+  fullWidth = '\uff10\uff11\uff12\uff13\uff14\uff15\uff16\uff17\uff18\uff19'
+  halfWidth = '0123456789'
+
+  value = ''
+  chars = str.split('')
+
+  # Avoid using reserved word `char`
+  for chr in chars
+    idx = fullWidth.indexOf(chr)
+    chr = halfWidth[idx] if idx > -1
+    value += chr
+
+  value
+
+# Format Numeric
+
+reFormatNumeric = (e) ->
+  $target = $(e.currentTarget)
+  setTimeout ->
+    value   = $target.val()
+    value   = replaceFullWidthChars(value)
+    value   = value.replace(/\D/g, '')
+    safeVal(value, $target)
+
 # Format Card Number
 
 reFormatCardNumber = (e) ->
+  $target = $(e.currentTarget)
   setTimeout ->
-    target  = e.currentTarget || e.target
-    value   = target.value
-    value   = payment.formatCardNumber(value)
-    target.value = value
+    value   = $target.val()
+    value   = replaceFullWidthChars(value)
+    value   = $.payment.formatCardNumber(value)
+    safeVal(value, $target)
 
 formatCardNumber = (e) ->
   # Only format if input is a number
@@ -201,22 +266,24 @@ formatBackCardNumber = (e) ->
   return if target.getAttribute('selectionStart')? and
     target.getAttribute('selectionStart') isnt value.length
 
-  # Remove the trailing space
+  # Remove the digit + trailing space
   if /\d\s$/.test(value)
     e.preventDefault()
-    setTimeout -> target.value = value.replace(/\d\s$/, '')
+    setTimeout -> $target.val(value.replace(/\d\s$/, ''))
+  # Remove digit if ends in space + digit
   else if /\s\d?$/.test(value)
     e.preventDefault()
-    setTimeout -> target.value = value.replace(/\s\d?$/, '')
+    setTimeout -> $target.val(value.replace(/\d$/, ''))
 
 # Format Expiry
 
 reFormatExpiry = (e) ->
+  $target = $(e.currentTarget)
   setTimeout ->
-    target = e.currentTarget || e.target
-    value  = target.value
-    value  = payment.formatExpiry(value)
-    target.value = value
+    value   = $target.val()
+    value   = replaceFullWidthChars(value)
+    value   = $.payment.formatExpiry(value)
+    safeVal(value, $target)
 
 formatExpiry = (e) ->
   # Only format if input is a number
@@ -232,7 +299,15 @@ formatExpiry = (e) ->
 
   else if /^\d\d$/.test(val)
     e.preventDefault()
-    setTimeout -> target.value = "#{val} / "
+    setTimeout ->
+      # Split for months where we have the second digit > 2 (past 12) and turn
+      # that into (m1)(m2) => 0(m1) / (m2)
+      m1 = parseInt(val[0], 10)
+      m2 = parseInt(val[1], 10)
+      if m2 > 2 and m1 != 0
+        $target.val("0#{m1} / #{m2}")
+      else
+        $target.val("#{val} / ")
 
 formatForwardExpiry = (e) ->
   digit = String.fromCharCode(e.which)
@@ -265,12 +340,22 @@ formatBackExpiry = (e) ->
   return if target.getAttribute('selectionStart')? and
     target.getAttribute('selectionStart') isnt value.length
 
-  # Remove the trailing space
-  if /\s\/\s\d?$/.test(value)
+  # Remove the trailing space + last digit
+  if /\d\s\/\s$/.test(value)
     e.preventDefault()
-    setTimeout -> target.value = value.replace(/\s\/\s\d?$/, '')
+    setTimeout -> $target.val(value.replace(/\d\s\/\s$/, ''))
 
-#  Restrictions
+# Format CVC
+
+reFormatCVC = (e) ->
+  $target = $(e.currentTarget)
+  setTimeout ->
+    value   = $target.val()
+    value   = replaceFullWidthChars(value)
+    value   = value.replace(/\D/g, '')[0...4]
+    safeVal(value, $target)
+
+# Restrictions
 
 restrictNumeric = (e) ->
   # Key event is for a browser shortcut
@@ -351,38 +436,44 @@ setCardType = (e) ->
 
 # Formatting
 
-payment.fn.formatCardCVC = ->
-  payment('restrictNumeric', this)
-  onEvent(this, 'keypress', restrictCVC)
+$.payment.fn.formatCardCVC = ->
+  @on('keypress', restrictNumeric)
+  @on('keypress', restrictCVC)
+  @on('paste', reFormatCVC)
+  @on('change', reFormatCVC)
+  @on('input', reFormatCVC)
   this
 
-payment.fn.formatCardExpiry = ->
-  payment('restrictNumeric', this)
-  onEvent(this, 'keypress', restrictExpiry)
-  @addEventListener('keypress', formatExpiry, false)
-  @addEventListener('keypress', formatForwardSlashAndSpace, false)
-  @addEventListener('keypress', formatForwardExpiry, false)
-  @addEventListener('keydown',  formatBackExpiry, false)
-  @addEventListener('change', reFormatExpiry, false)
-  @addEventListener('input', reFormatExpiry, false)
+$.payment.fn.formatCardExpiry = ->
+  @on('keypress', restrictNumeric)
+  @on('keypress', restrictExpiry)
+  @on('keypress', formatExpiry)
+  @on('keypress', formatForwardSlashAndSpace)
+  @on('keypress', formatForwardExpiry)
+  @on('keydown',  formatBackExpiry)
+  @on('change', reFormatExpiry)
+  @on('input', reFormatExpiry)
   this
 
-payment.fn.formatCardNumber = ->
-  payment('restrictNumeric', this)
-  onEvent(this, 'keypress', restrictCardNumber)
-  @addEventListener('keypress', formatCardNumber, false)
-  @addEventListener('keydown', formatBackCardNumber, false)
-  @addEventListener('keyup', setCardType, false)
-  @addEventListener('paste', reFormatCardNumber, false)
-  @addEventListener('change', reFormatCardNumber, false)
-  @addEventListener('input', reFormatCardNumber, false)
-  @addEventListener('input', setCardType, false)
+$.payment.fn.formatCardNumber = ->
+  @on('keypress', restrictNumeric)
+  @on('keypress', restrictCardNumber)
+  @on('keypress', formatCardNumber)
+  @on('keydown', formatBackCardNumber)
+  @on('keyup', setCardType)
+  @on('paste', reFormatCardNumber)
+  @on('change', reFormatCardNumber)
+  @on('input', reFormatCardNumber)
+  @on('input', setCardType)
   this
 
 # Restrictions
 
-payment.fn.restrictNumeric = ->
-  onEvent(this, 'keypress', restrictNumeric)
+$.payment.fn.restrictNumeric = ->
+  @on('keypress', restrictNumeric)
+  @on('paste', reFormatNumeric)
+  @on('change', reFormatNumeric)
+  @on('input', reFormatNumeric)
   this
 
 # Validations
@@ -390,9 +481,8 @@ payment.fn.restrictNumeric = ->
 payment.fn.cardExpiryVal = ->
   payment.cardExpiryVal(this.value)
 
-payment.cardExpiryVal = (value) ->
-  value = value.replace(/\s/g, '')
-  [month, year] = value.split('/', 2)
+$.payment.cardExpiryVal = (value) ->
+  [month, year] = value.split(/[\s\/]+/, 2)
 
   # Allow for year shortcut
   if year?.length is 2 and /^\d+$/.test(year)
@@ -466,13 +556,12 @@ payment.cardType = (num) ->
   return null unless num
   cardFromNumber(num)?.type or null
 
-payment.formatCardNumber = (num) ->
+$.payment.formatCardNumber = (num) ->
+  num = num.replace(/\D/g, '')
   card = cardFromNumber(num)
   return num unless card
 
   upperLength = card.length[card.length.length - 1]
-
-  num = num.replace(/\D/g, '')
   num = num[0...upperLength]
 
   if card.format.global
@@ -492,10 +581,17 @@ payment.formatExpiry = (expiry) ->
   sep = parts[2] || ''
   year = parts[3] || ''
 
-  if year.length > 0 || (sep.length > 0 && !(/\ \/?\ ?/.test(sep)))
+  if year.length > 0
     sep = ' / '
 
-  if mon.length == 1 and mon not in ['0', '1']
+  else if sep is ' /'
+    mon = mon.substring(0, 1)
+    sep = ''
+
+  else if mon.length == 2 or sep.length > 0
+    sep = ' / '
+
+  else if mon.length == 1 and mon not in ['0', '1']
     mon = "0#{mon}"
     sep = ' / '
 

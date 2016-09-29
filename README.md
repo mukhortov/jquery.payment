@@ -4,7 +4,17 @@ Port from [jQuery.payment](https://github.com/stripe/jquery.payment) without jQu
 
 A general purpose library for building credit card forms, validating inputs and formatting numbers.
 
-For example, you can make a input act like a credit card field (with number formatting and length restriction):
+## Project status
+
+We consider `jQuery.payment` to be feature complete. We continue to use it in production, and we will happily accept bug reports and pull requests fixing those bugs, but we will not be adding new features or modifying the project for new frameworks or build systems.
+
+### Why?
+
+The library was born in a different age, and we think it has served tremendously, but it is fundamentally doing too many things. Complecting DOM element manipulation, input masking, card formatting, and cursor positioning makes it difficult to test and modify. An ideal version of this library would separate the independent components and make the internal logic functional.
+
+## Usage
+
+You can make an input act like a credit card field (with number formatting and length restriction):
 
 ``` javascript
 payment('formatCardNumber', document.querySelector('input.cc-num'));
@@ -32,10 +42,11 @@ Supported card types are:
 * Discover
 * UnionPay
 * JCB
-* Visa Electron
 * Maestro
 * Forbrugsforeningen
 * Dankort
+
+(Additional card types are supported by extending the [`$.payment.cards`](#paymentcards) array.)
 
 ## API
 
@@ -149,7 +160,6 @@ Returns a card type. Either:
 * `discover`
 * `unionpay`
 * `jcb`
-* `visaelectron`
 * `maestro`
 * `forbrugsforeningen`
 * `dankort`
@@ -167,12 +177,38 @@ payment.cardType('4242 4242 4242 4242'); //=> 'visa'
 Parses a credit card expiry in the form of MM/YYYY, returning an object containing the `month` and `year`. Shorthand years, such as `13` are also supported (and converted into the longhand, e.g. `2013`).
 
 ``` javascript
-payment.cardExpiryVal('03 / 2025'); //=> {month: 3: year: 2025}
-payment.cardExpiryVal('05 / 04'); //=> {month: 5, year: 2004}
-payment('cardExpiryVal', document.querySelector('input.cc-exp')) //=> {month: 4, year: 2020}
+$.payment.cardExpiryVal('03 / 2025'); //=> {month: 3, year: 2025}
+$.payment.cardExpiryVal('05 / 04'); //=> {month: 5, year: 2004}
+$('input.cc-exp').payment('cardExpiryVal') //=> {month: 4, year: 2020}
 ```
 
 This function doesn't perform any validation of the month or year; use `payment.validateCardExpiry(month, year)` for that.
+
+### $.payment.cards
+
+Array of objects that describe valid card types. Each object should contain the following fields:
+
+``` javascript
+{
+  // Card type, as returned by $.payment.cardType.
+  type: 'mastercard',
+  // Array of prefixes used to identify the card type.
+  patterns: [
+      51, 52, 53, 54, 55,
+      22, 23, 24, 25, 26, 27
+  ],
+  // Array of valid card number lengths.
+  length: [16],
+  // Array of valid card CVC lengths.
+  cvcLength: [3],
+  // Boolean indicating whether a valid card number should satisfy the Luhn check.
+  luhn: true,
+  // Regex used to format the card number. Each match is joined with a space.
+  format: /(\d{1,4})/g
+}
+```
+
+When identifying a card type, the array is traversed in order until the card number matches a prefix in `patterns`. For this reason, patterns with higher specificity should appear towards the beginning of the array.
 
 ## Example
 
@@ -188,29 +224,22 @@ Run `cake test`
 
 ## Autocomplete recommendations
 
-We recommend you turn autocomplete on for credit card forms, except for the CVC field (which should never be stored). You can do this by setting the `autocomplete` attribute:
+We recommend you turn autocomplete on for credit card forms, *except for the CVC field (which should never be stored)*. You can do this by setting the `autocomplete` attribute:
 
 ``` html
 <form autocomplete="on">
-  <input class="cc-number">
+  <input class="cc-number" autocomplete="cc-number">
+  <input class="cc-exp" autocomplete="cc-exp">
   <input class="cc-cvc" autocomplete="off">
 </form>
 ```
 
-You should also mark up your fields using the [Autocomplete Types spec](http://wiki.whatwg.org/wiki/Autocomplete_Types). These are respected by a number of browsers, including Chrome.
-
-``` html
-<input type="text" class="cc-number" pattern="\d*" autocomplete="cc-number" placeholder="Card number" required>
-```
-
-Set `autocomplete` to `cc-number` for credit card numbers and `cc-exp` for credit card expiry.
+You should mark up your fields using the [Autofill spec](https://html.spec.whatwg.org/multipage/forms.html#autofill). These are respected by a number of browsers, including Chrome, Safari, Firefox.
 
 ## Mobile recommendations
 
-We recommend you set the `pattern` attribute which will cause the numeric keyboard to be displayed on mobiles:
+We recommend you to use `<input type="tel">` which will cause the numeric keyboard to be displayed on mobile devices:
 
 ``` html
-<input class="cc-number" pattern="\d*">
+<input type="tel" class="cc-number">
 ```
-
-You may have to turn off HTML5 validation (using the `novalidate` form attribute) when using this `pattern`, as it won't match space formatting.
