@@ -1,14 +1,14 @@
-$ = window.jQuery or window.Zepto or window.$
-$.payment = {}
-$.payment.fn = {}
-$.fn.payment = (method, args...) ->
-  $.payment.fn[method].apply(this, args)
+payment = (method, element, args...) ->
+  return if !element
+  payment.fn[method].apply(element, args)
+
+payment.fn = {}
 
 # Utils
 
 defaultFormat = /(\d{1,4})/g
 
-$.payment.cards = cards = [
+payment.cards = cards = [
   {
     type: 'maestro'
     patterns: [
@@ -147,14 +147,14 @@ hasTextSelected = (target) ->
 
 # Safe Val
 
-safeVal = (value, $target) ->
+safeVal = (value, target) ->
   try
-    cursor = $target.prop('selectionStart')
+    cursor = target.selectionStart
   catch error
     cursor = null
-  last = $target.val()
-  $target.val(value)
-  if cursor != null && $target.is(":focus")
+  last = target.value
+  target.value = value
+  if cursor != null && target == document.activeElement
     cursor = value.length if cursor is last.length
 
     # This hack looks for scenarios where we are changing an input's value such
@@ -181,8 +181,8 @@ safeVal = (value, $target) ->
       cursor = cursor + 1 if /\d/.test(digit) and
         prevPair == "#{digit} " and currPair == " #{digit}"
 
-    $target.prop('selectionStart', cursor)
-    $target.prop('selectionEnd', cursor)
+    target.selectionStart = cursor
+    target.selectionEnd = cursor
 
 # Replace Full-Width Chars
 
@@ -204,22 +204,22 @@ replaceFullWidthChars = (str = '') ->
 # Format Numeric
 
 reFormatNumeric = (e) ->
-  $target = $(e.currentTarget)
+  target  = e.currentTarget || e.target
   setTimeout ->
-    value   = $target.val()
+    value   = target.value
     value   = replaceFullWidthChars(value)
     value   = value.replace(/\D/g, '')
-    safeVal(value, $target)
+    safeVal(value, target)
 
 # Format Card Number
 
 reFormatCardNumber = (e) ->
-  $target = $(e.currentTarget)
+  target = e.currentTarget || e.target
   setTimeout ->
-    value   = $target.val()
+    value   = target.value
     value   = replaceFullWidthChars(value)
-    value   = $.payment.formatCardNumber(value)
-    safeVal(value, $target)
+    value   = payment.formatCardNumber(value)
+    safeVal(value, target)
 
 formatCardNumber = (e) ->
   # Only format if input is a number
@@ -269,21 +269,21 @@ formatBackCardNumber = (e) ->
   # Remove the digit + trailing space
   if /\d\s$/.test(value)
     e.preventDefault()
-    setTimeout -> $target.val(value.replace(/\d\s$/, ''))
+    setTimeout -> target.value = value.replace(/\d\s$/, '')
   # Remove digit if ends in space + digit
   else if /\s\d?$/.test(value)
     e.preventDefault()
-    setTimeout -> $target.val(value.replace(/\d$/, ''))
+    setTimeout -> target.value = value.replace(/\d$/, '')
 
 # Format Expiry
 
 reFormatExpiry = (e) ->
-  $target = $(e.currentTarget)
+  target = e.currentTarget || e.target
   setTimeout ->
-    value   = $target.val()
+    value   = target.value
     value   = replaceFullWidthChars(value)
-    value   = $.payment.formatExpiry(value)
-    safeVal(value, $target)
+    value   = payment.formatExpiry(value)
+    safeVal(value, target)
 
 formatExpiry = (e) ->
   # Only format if input is a number
@@ -305,9 +305,9 @@ formatExpiry = (e) ->
       m1 = parseInt(val[0], 10)
       m2 = parseInt(val[1], 10)
       if m2 > 2 and m1 != 0
-        $target.val("0#{m1} / #{m2}")
+        target.value = "0#{m1} / #{m2}"
       else
-        $target.val("#{val} / ")
+        target.value = "#{val} / "
 
 formatForwardExpiry = (e) ->
   digit = String.fromCharCode(e.which)
@@ -343,17 +343,17 @@ formatBackExpiry = (e) ->
   # Remove the trailing space + last digit
   if /\d\s\/\s$/.test(value)
     e.preventDefault()
-    setTimeout -> $target.val(value.replace(/\d\s\/\s$/, ''))
+    setTimeout -> target.value = value.replace(/\d\s\/\s$/, '')
 
 # Format CVC
 
 reFormatCVC = (e) ->
-  $target = $(e.currentTarget)
+  target = e.currentTarget || e.target
   setTimeout ->
-    value   = $target.val()
+    value   = target.value
     value   = replaceFullWidthChars(value)
     value   = value.replace(/\D/g, '')[0...4]
-    safeVal(value, $target)
+    safeVal(value, target)
 
 # Restrictions
 
@@ -429,51 +429,50 @@ setCardType = (e) ->
     target.classList.toggle('identified', cardType isnt 'unknown')
     event = new CustomEvent 'payment.cardType', cardType
     target.dispatchEvent(event)
-    #Check what to return "target.dispatchEvent(event)" or "target"
     target
 
 # Public
 
 # Formatting
 
-$.payment.fn.formatCardCVC = ->
-  @on('keypress', restrictNumeric)
-  @on('keypress', restrictCVC)
-  @on('paste', reFormatCVC)
-  @on('change', reFormatCVC)
-  @on('input', reFormatCVC)
+payment.fn.formatCardCVC = ->
+  payment('restrictNumeric', this)
+  onEvent(this, 'keypress', restrictCVC)
+  @addEventListener('paste', reFormatCVC, false)
+  @addEventListener('change', reFormatCVC, false)
+  @addEventListener('input', reFormatCVC, false)
   this
 
-$.payment.fn.formatCardExpiry = ->
-  @on('keypress', restrictNumeric)
-  @on('keypress', restrictExpiry)
-  @on('keypress', formatExpiry)
-  @on('keypress', formatForwardSlashAndSpace)
-  @on('keypress', formatForwardExpiry)
-  @on('keydown',  formatBackExpiry)
-  @on('change', reFormatExpiry)
-  @on('input', reFormatExpiry)
+payment.fn.formatCardExpiry = ->
+  payment('restrictNumeric', this)
+  onEvent(this, 'keypress', restrictExpiry)
+  @addEventListener('keypress', formatExpiry, false)
+  @addEventListener('keypress', formatForwardSlashAndSpace, false)
+  @addEventListener('keypress', formatForwardExpiry, false)
+  @addEventListener('keydown',  formatBackExpiry, false)
+  @addEventListener('change', reFormatExpiry, false)
+  @addEventListener('input', reFormatExpiry, false)
   this
 
-$.payment.fn.formatCardNumber = ->
-  @on('keypress', restrictNumeric)
-  @on('keypress', restrictCardNumber)
-  @on('keypress', formatCardNumber)
-  @on('keydown', formatBackCardNumber)
-  @on('keyup', setCardType)
-  @on('paste', reFormatCardNumber)
-  @on('change', reFormatCardNumber)
-  @on('input', reFormatCardNumber)
-  @on('input', setCardType)
+payment.fn.formatCardNumber = ->
+  payment('restrictNumeric', this)
+  onEvent(this, 'keypress', restrictCardNumber)
+  @addEventListener('keypress', formatCardNumber, false)
+  @addEventListener('keydown', formatBackCardNumber, false)
+  @addEventListener('keyup', setCardType, false)
+  @addEventListener('paste', reFormatCardNumber, false)
+  @addEventListener('change', reFormatCardNumber, false)
+  @addEventListener('input', reFormatCardNumber, false)
+  @addEventListener('input', setCardType, false)
   this
 
 # Restrictions
 
-$.payment.fn.restrictNumeric = ->
-  @on('keypress', restrictNumeric)
-  @on('paste', reFormatNumeric)
-  @on('change', reFormatNumeric)
-  @on('input', reFormatNumeric)
+payment.fn.restrictNumeric = ->
+  onEvent(this, 'keypress', restrictNumeric)
+  @addEventListener('paste', reFormatNumeric, false)
+  @addEventListener('change', reFormatNumeric, false)
+  @addEventListener('input', reFormatNumeric, false)
   this
 
 # Validations
@@ -481,7 +480,7 @@ $.payment.fn.restrictNumeric = ->
 payment.fn.cardExpiryVal = ->
   payment.cardExpiryVal(this.value)
 
-$.payment.cardExpiryVal = (value) ->
+payment.cardExpiryVal = (value) ->
   [month, year] = value.split(/[\s\/]+/, 2)
 
   # Allow for year shortcut
@@ -556,7 +555,7 @@ payment.cardType = (num) ->
   return null unless num
   cardFromNumber(num)?.type or null
 
-$.payment.formatCardNumber = (num) ->
+payment.formatCardNumber = (num) ->
   num = num.replace(/\D/g, '')
   card = cardFromNumber(num)
   return num unless card
