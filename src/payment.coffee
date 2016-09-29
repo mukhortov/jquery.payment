@@ -427,7 +427,7 @@ setCardType = (e) ->
 
     target.classList.add(cardType)
     target.classList.toggle('identified', cardType isnt 'unknown')
-    event = new CustomEvent 'payment.cardType', cardType
+    event = new CustomEvent 'payment.cardType', detail: 'cardType': cardType
     target.dispatchEvent(event)
     target
 

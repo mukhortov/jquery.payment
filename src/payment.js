@@ -480,7 +480,11 @@
       }
       target.classList.add(cardType);
       target.classList.toggle('identified', cardType !== 'unknown');
-      event = new CustomEvent('payment.cardType', cardType);
+      event = new CustomEvent('payment.cardType', {
+        detail: {
+          'cardType': cardType
+        }
+      });
       target.dispatchEvent(event);
       return target;
     }
